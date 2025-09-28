@@ -4,19 +4,19 @@ from typing import List, Optional
 from dotenv import load_dotenv
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
-from tavily import TavilyClient
+from langchain_tavily import TavilySearch
 
 load_dotenv()
 
-tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-
 app = FastAPI()
 
-# Input model (only the topic is provided by the client)
+tavily_search_tool = TavilySearch(max_results=3, topic="news")
+
+# Input model 
 class GeneratePostInput(BaseModel):
     topic: str
 
-# Output model matches the assignment's expected response
+# Output model 
 class GeneratePostOutput(BaseModel):
     topic: str
     news_sources: List[str]
@@ -27,7 +27,6 @@ class GeneratePostOutput(BaseModel):
 async def health():
     return {"status": "ok"}
 
-# Use the new models in the endpoint
 @app.post("/generate-post", response_model=GeneratePostOutput)
 async def generate_post(request: GeneratePostInput):
     model = ChatGoogleGenerativeAI(
@@ -35,7 +34,7 @@ async def generate_post(request: GeneratePostInput):
         google_api_key=os.getenv("GEMINI_API_KEY")
     )
 
-    search_results = tavily.search(query=request.topic, max_results=3)
+    search_results = tavily_search_tool.invoke({"query": request.topic})
     news_sources = [result["url"] for result in search_results["results"]]
 
     prompt = f"""
