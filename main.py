@@ -4,8 +4,11 @@ from typing import List, Optional
 from dotenv import load_dotenv
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
+from tavily import TavilyClient
 
 load_dotenv()
+
+tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
 app = FastAPI()
 
@@ -26,25 +29,24 @@ async def generate_post(request: GeneratePostRequest):
         google_api_key=os.getenv("GEMINI_API_KEY")
     )
 
-    prompt = f"Write a LinkedIn-style professional post summarizing recent news on: {request.topic}"
+    search_results = tavily.search(query=request.topic, max_results=3)
+    news_sources = [result["url"] for result in search_results["results"]]
+
+    prompt = f"""
+    Write a LinkedIn-style professional post summarizing recent news on: {request.topic}
+    Base it on these sources: {news_sources}.
+    Keep it engaging and concise.
+    """
 
     response = model.invoke(prompt)
 
     return GeneratePostRequest(
         topic=request.topic,
-        news_sources=[],  
+        news_sources=news_sources,  
         linkedin_post=response.content,
         image_suggestion=None
     )
 
 
-# def test_gemini():
-#     model = ChatGoogleGenerativeAI(
-#         model="gemini-2.0-flash",
-#         google_api_key=os.getenv("GEMINI_API_KEY")
-#     )
-#     response = model.invoke("Hello Gemini, can you write a 1-line greeting?")
-#     print("Gemini says:", response.content)
 
-# test_gemini()
 
